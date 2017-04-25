@@ -13,6 +13,13 @@ pub struct Settings {
   pub workspace: String,
   pub default_after_workon: Option<String>,
   pub default_after_clone: Option<String>,
+  pub tags: Option<BTreeMap<String, Tag>>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Tag {
+  pub after_clone: Option<String>,
+  pub after_workon: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

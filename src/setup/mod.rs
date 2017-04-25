@@ -74,6 +74,7 @@ fn write_config(projects: BTreeMap<String, Project>, logger: &Logger, workspace_
       workspace: workspace_dir.to_owned(),
       default_after_workon: None,
       default_after_clone: None,
+      tags: Some(BTreeMap::new()),
     },
   };
   debug!(logger, "Finished"; "projects" => format!("{:?}", config.projects.len()));
