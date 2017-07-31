@@ -10,6 +10,7 @@ use git2::build::RepoBuilder;
 use pbr::{MultiBar, Pipe, ProgressBar};
 use rand;
 use rand::Rng;
+use rayon;
 use rayon::prelude::*;
 use slog::Logger;
 use std;
@@ -138,6 +139,12 @@ fn project_shell(project_settings: &Settings) -> Vec<String> {
 
 pub fn foreach(maybe_config: Result<Config, AppError>, cmd: &str, tags: &BTreeSet<String>, logger: &Logger) -> Result<(), AppError> {
   let config = maybe_config?;
+
+  if let Ok(rawNum) =  std::env::var("RAYON_NUM_THREADS") {
+    let rayon_config = rayon::Configuration::new().num_threads(rawNum.parse::<usize>().expect("RAYON_NUM_THREADS is not a usize"));
+    rayon::initialize(rayon_config).expect("rayon does not work");
+  }
+
   let projects: Vec<&Project> = config.projects.values().collect();
   let script_results = projects
                              .par_iter()
