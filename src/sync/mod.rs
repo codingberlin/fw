@@ -6,6 +6,9 @@ use errors::AppError;
 use git2;
 use git2::FetchOptions;
 use git2::RemoteCallbacks;
+use git2::Repository;
+use git2::AutotagOption;
+use git2::Direction;
 use git2::build::RepoBuilder;
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use rand;
@@ -212,6 +215,33 @@ fn sync_project(config: &Config, project: &Project, logger: &Logger) -> Result<(
       ));
   if exists {
     debug!(project_logger, "NOP");
+    let local = Repository::init(path).map_err(|error| {
+      warn!(project_logger, "Error opening local repo"; "error" => format!("{}", error));
+      AppError::GitError(error)
+    })?;
+    let remote = "origin";
+    let mut remote = try!(local.find_remote(remote)
+        .or_else(|_| { local.remote_anonymous(remote) })
+    );
+
+    let mut remote_callbacks = RemoteCallbacks::new();
+    remote_callbacks.credentials(|_, _, _| git2::Cred::ssh_key_from_agent("git"));
+    remote.connect_auth(Direction::Fetch, Some(remote_callbacks), None)
+                .map_err(|error| {
+      warn!(project_logger, "Error connecting remote"; "error" => format!("{}", error), "project" => project.name);
+      AppError::GitError(error)
+    })?;
+    // TODO @mriehl kinda duplicated?
+    let mut options = FetchOptions::new();
+    let mut remote_callbacks2 = RemoteCallbacks::new();
+    remote_callbacks2.credentials(|_, _, _| git2::Cred::ssh_key_from_agent("git"));
+    options.remote_callbacks(remote_callbacks2);
+    remote.download(&[], Some(&mut options)).map_err(|error| {
+      warn!(project_logger, "Error downloading for remote"; "error" => format!("{}", error), "project" => project.name);
+      AppError::GitError(error)
+    })?;
+    remote.disconnect();
+    try!(remote.update_tips(None, true, AutotagOption::Unspecified, None));
     Result::Ok(())
   } else {
     debug!(project_logger, "Cloning project");
